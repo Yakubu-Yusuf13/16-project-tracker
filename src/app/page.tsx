@@ -16,7 +16,8 @@ export default async function Home() {
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Project tracker</h1>
           <p className="mt-2 text-sm text-slate-500">A clear view of your projects and their progress.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/stats" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-indigo-700 shadow-sm hover:bg-indigo-50">Statistics</Link>
           <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Projects</p>
             <p className="mt-1 text-xl font-semibold text-slate-900">{projects.length}</p>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProject, getTasks, type TaskPriority } from "@/lib/queries";
@@ -14,6 +15,21 @@ function isTaskPriority(value: string): value is TaskPriority {
   return priorities.some((priority) => priority === value);
 }
 
+export async function generateMetadata({ params }: Pick<ProjectPageProps, "params">): Promise<Metadata> {
+  const { id } = await params;
+  const projectId = Number(id);
+  if (!Number.isSafeInteger(projectId) || projectId < 1) {
+    return { title: "Project not found | Project Tracker" };
+  }
+
+  const project = await getProject(projectId);
+  if (!project) return { title: "Project not found | Project Tracker" };
+
+  return {
+    title: `${project.name} | Project Tracker`,
+    description: project.description || `Tasks and progress for ${project.name}.`,
+  };
+}
 export default async function ProjectPage({ params, searchParams }: ProjectPageProps) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const projectId = Number(id);

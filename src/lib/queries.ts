@@ -31,6 +31,27 @@ export interface TaskFilters {
   q?: string;
 }
 
+
+export interface StatsAggregateRow {
+  kind: "total" | "project-total" | "status" | "priority" | "project";
+  label: string;
+  count: number;
+  doneCount: number;
+  activeCount: number;
+  completionPct: number;
+  sharePct: number;
+  projectId: number | null;
+  color: string | null;
+}
+
+export interface OverdueTask {
+  id: number;
+  title: string;
+  projectId: number;
+  projectName: string;
+  priority: TaskPriority;
+  dueDate: string;
+}
 export async function getProjects(): Promise<ProjectSummary[]> {
   const rows = await sql`
     SELECT
@@ -103,4 +124,113 @@ export async function getTasks(
   `;
 
   return rows as Task[];
+}
+export async function getStatsData(): Promise<{
+  aggregates: StatsAggregateRow[];
+  overdueTasks: OverdueTask[];
+}> {
+  const [aggregateRows, overdueRows] = await Promise.all([
+    sql`
+      WITH task_totals AS (
+        SELECT
+          COUNT(*)::int AS total_count,
+          COUNT(*) FILTER (WHERE status = 'done')::int AS done_count,
+          COUNT(*) FILTER (WHERE status <> 'done')::int AS active_count,
+          COALESCE(
+            ROUND(COUNT(*) FILTER (WHERE status = 'done') * 100.0 / NULLIF(COUNT(*), 0)),
+            0
+          )::int AS completion_pct
+        FROM tasks
+      )
+      SELECT
+        'total'::text AS kind,
+        'Tasks'::text AS label,
+        total_count AS count,
+        done_count AS "doneCount",
+        active_count AS "activeCount",
+        completion_pct AS "completionPct",
+        CASE WHEN total_count > 0 THEN 100 ELSE 0 END::int AS "sharePct",
+        NULL::int AS "projectId",
+        NULL::text AS color
+      FROM task_totals
+      UNION ALL
+      SELECT
+        'project-total',
+        'Projects',
+        COUNT(*)::int,
+        0::int,
+        0::int,
+        0::int,
+        CASE WHEN COUNT(*) > 0 THEN 100 ELSE 0 END::int,
+        NULL::int,
+        NULL::text
+      FROM projects
+      UNION ALL
+      SELECT
+        'status',
+        s.status,
+        COUNT(t.id)::int,
+        COUNT(t.id) FILTER (WHERE t.status = 'done')::int,
+        COUNT(t.id) FILTER (WHERE t.status <> 'done')::int,
+        0::int,
+        COALESCE(ROUND(COUNT(t.id) * 100.0 / NULLIF(tt.total_count, 0)), 0)::int,
+        NULL::int,
+        NULL::text
+      FROM (VALUES ('todo'::text), ('doing'::text), ('done'::text)) AS s(status)
+      LEFT JOIN tasks AS t ON t.status = s.status
+      CROSS JOIN task_totals AS tt
+      GROUP BY s.status, tt.total_count
+      UNION ALL
+      SELECT
+        'priority',
+        p.priority,
+        COUNT(t.id)::int,
+        COUNT(t.id) FILTER (WHERE t.status = 'done')::int,
+        COUNT(t.id) FILTER (WHERE t.status <> 'done')::int,
+        0::int,
+        COALESCE(ROUND(COUNT(t.id) * 100.0 / NULLIF(tt.total_count, 0)), 0)::int,
+        NULL::int,
+        NULL::text
+      FROM (VALUES ('low'::text), ('medium'::text), ('high'::text)) AS p(priority)
+      LEFT JOIN tasks AS t ON t.priority = p.priority
+      CROSS JOIN task_totals AS tt
+      GROUP BY p.priority, tt.total_count
+      UNION ALL
+      SELECT
+        'project',
+        p.name,
+        COUNT(t.id)::int,
+        COUNT(t.id) FILTER (WHERE t.status = 'done')::int,
+        COUNT(t.id) FILTER (WHERE t.status <> 'done')::int,
+        COALESCE(
+          ROUND(COUNT(t.id) FILTER (WHERE t.status = 'done') * 100.0 / NULLIF(COUNT(t.id), 0)),
+          0
+        )::int,
+        COALESCE(ROUND(COUNT(t.id) * 100.0 / NULLIF(tt.total_count, 0)), 0)::int,
+        p.id,
+        p.color
+      FROM projects AS p
+      LEFT JOIN tasks AS t ON t.project_id = p.id
+      CROSS JOIN task_totals AS tt
+      GROUP BY p.id, p.name, p.color, tt.total_count
+    `,
+    sql`
+      SELECT
+        t.id,
+        t.title,
+        p.id AS "projectId",
+        p.name AS "projectName",
+        t.priority,
+        t.due_date AS "dueDate"
+      FROM tasks AS t
+      JOIN projects AS p ON p.id = t.project_id
+      WHERE t.due_date < CURRENT_DATE AND t.status <> 'done'
+      ORDER BY t.due_date ASC, p.name ASC, t.title ASC
+    `,
+  ]);
+
+  return {
+    aggregates: aggregateRows as StatsAggregateRow[],
+    overdueTasks: overdueRows as OverdueTask[],
+  };
 }
