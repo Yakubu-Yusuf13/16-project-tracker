@@ -22,6 +22,12 @@ export default function Navbar() {
           >
             Statistics
           </Link>
+          <Link
+            href="/settings"
+            className="text-sm font-medium text-slate-600 transition hover:text-indigo-700"
+          >
+            Settings
+          </Link>
           <Suspense
             fallback={
               <span

@@ -28,6 +28,7 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 - `src/lib/session.ts` provides `requireUser()` guards for data pages and Server Actions.
 - The root navigation reads the session in a Suspense boundary; sign-in and sign-out are Server Actions.
 - `src/app/actions.ts` contains Server Actions for writes. They validate `FormData` with Zod, require the authenticated user, scope each write by project ownership, check affected rows, and revalidate affected routes.
+- `/settings` displays the signed-in GitHub profile and provides a confirmed account deletion action; deleting the user cascades to owned projects and their tasks.
 - Client form and Kanban components use `useActionState` and `useOptimistic` for submission feedback and responsive task moves.
 
 ## Setup
@@ -46,7 +47,7 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
    Copy-Item .env.example .env.local
    ```
 
-   Set `DATABASE_URL` to the Neon connection string, including its SSL options. Set `AUTH_SECRET` to a secure random value, and set `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` from your GitHub OAuth App. Configure its callback URL as `http://localhost:3000/api/auth/callback/github`. Do not commit `.env.local`.
+   Set the variables listed below in `.env.local`. Do not commit `.env.local`.
 
 5. In the Neon SQL Editor, run [`db/schema.sql`](./db/schema.sql) once against the new database. It creates the `users`, `projects`, and `tasks` tables, adds project ownership, and includes sample project and task records.
 6. Start the development server:
@@ -65,13 +66,51 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 
 The schema also defines indexes on `projects.owner_id` and `tasks.project_id`, and check constraints for project names, task titles, status, and priority.
 
-## OAuth flow
+## Authentication
 
-1. The user submits the GitHub sign-in form, and the Auth.js Server Action redirects the browser to GitHub.
-2. The user authorizes the OAuth app on GitHub.
-3. GitHub redirects to `/api/auth/callback/github` with an authorization code. Auth.js validates the OAuth state and exchanges the code for the user profile.
-4. The JWT callback upserts the profile by GitHub account ID and stores the numeric `users.id` in the JWT.
-5. Auth.js sets its session cookie. On later requests, the session callback exposes that database ID as `session.user.id`; the navbar renders the user menu from the server session.
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | yes | Neon Postgres connection string, including its SSL options. |
+| `AUTH_SECRET` | yes | Cryptographically random secret used by Auth.js to protect session data. |
+| `AUTH_GITHUB_ID` | yes | Client ID for the GitHub OAuth App. |
+| `AUTH_GITHUB_SECRET` | yes | Client secret for the GitHub OAuth App. Keep it private; do not commit it. |
+
+### Create a GitHub OAuth App
+
+1. On GitHub, open **Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. Set the application name (for example, `Project Tracker (dev)`) and Homepage URL to `http://localhost:3000`.
+3. Set Authorization callback URL to `http://localhost:3000/api/auth/callback/github`, then register the application.
+4. Copy the displayed Client ID to `AUTH_GITHUB_ID`, generate a new client secret, and save it as `AUTH_GITHUB_SECRET` in `.env.local`.
+5. Set `AUTH_SECRET` to a cryptographically random value and restart the development server after changing environment variables.
+
+Do not share or commit OAuth client secrets. Use the same `localhost` hostname in the browser as in the registered callback URL.
+
+### OAuth flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Project Tracker
+    participant Auth as Auth.js
+    participant GitHub
+    participant DB as Neon Postgres
+
+    User->>App: Submit "Sign in with GitHub"
+    App->>Auth: Start OAuth sign-in
+    Auth-->>User: Redirect to GitHub
+    User->>GitHub: Authorize application
+    GitHub-->>Auth: Redirect to /api/auth/callback/github with code
+    Auth->>GitHub: Validate state and exchange code
+    GitHub-->>Auth: GitHub profile and tokens
+    Auth->>DB: Upsert user by GitHub account ID
+    DB-->>Auth: Return numeric users.id
+    Auth->>Auth: Store users.id in JWT session
+    Auth-->>User: Set session cookie and redirect to app
+```
+
+The session callback exposes the database ID as `session.user.id`. Protected pages and Server Actions use that ID to scope project and task access.
 
 ## Route protection
 

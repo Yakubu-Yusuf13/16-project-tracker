@@ -3,15 +3,28 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
-export async function requireUser(): Promise<{ id: number }> {
+export type RequiredUser = {
+  id: number;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+};
+
+export async function requireUser(): Promise<RequiredUser> {
   const session = await auth();
-  const id = Number(session?.user?.id);
+  const sessionUser = session?.user;
+  const id = Number(sessionUser?.id);
 
   if (!Number.isSafeInteger(id) || id < 1) {
     redirect("/login");
   }
 
-  return { id };
+  return {
+    id,
+    name: sessionUser?.name ?? null,
+    email: sessionUser?.email ?? null,
+    image: sessionUser?.image ?? null,
+  };
 }
 
 export function getSafeCallbackUrl(value: unknown): string {
