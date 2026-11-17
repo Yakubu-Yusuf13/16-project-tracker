@@ -10,6 +10,7 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 - Priority and title search filters, applied in SQL and reflected in the URL.
 - Statistics for task status, priority, overdue tasks, and per-project completion.
 - Zod validation for server-action form input.
+- GitHub OAuth sign-in using Auth.js v5 JWT sessions.
 
 ## Stack
 
@@ -22,6 +23,8 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 
 - App Router Server Components load dashboard, project, and statistics data.
 - `src/lib/queries.ts` contains parameterized SQL reads; `src/lib/db.ts` creates the server-only Neon client.
+- `src/auth.ts` configures Auth.js with GitHub, upserts users by GitHub account ID, and adds the database user ID to JWT and session data.
+- The root navigation reads the session in a Suspense boundary; sign-in and sign-out are Server Actions.
 - `src/app/actions.ts` contains Server Actions for writes. They validate `FormData` with Zod, execute parameterized SQL, and revalidate affected routes.
 - Client form and Kanban components use `useActionState` and `useOptimistic` for submission feedback and responsive task moves.
 
@@ -35,15 +38,15 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
    npm install
    ```
 
-4. Create your local environment file and add the connection string:
+4. Create your local environment file:
 
    ```powershell
    Copy-Item .env.example .env.local
    ```
 
-   Edit `.env.local` and set `DATABASE_URL` to the Neon connection string, including its SSL options. Do not commit `.env.local`.
+   Set `DATABASE_URL` to the Neon connection string, including its SSL options. Set `AUTH_SECRET` to a secure random value, and set `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` from your GitHub OAuth App. Configure its callback URL as `http://localhost:3000/api/auth/callback/github`. Do not commit `.env.local`.
 
-5. In the Neon SQL Editor, run [`db/schema.sql`](./db/schema.sql) once against the new database. It creates the `projects` and `tasks` tables and includes sample records.
+5. In the Neon SQL Editor, run [`db/schema.sql`](./db/schema.sql) once against the new database. It creates the `users`, `projects`, and `tasks` tables, adds project ownership, and includes sample project and task records.
 6. Start the development server:
 
    ```bash
@@ -54,10 +57,19 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 
 ## Database schema
 
-- `projects`: serial ID, required 2-80 character name, description, hex color, and creation timestamp.
+- `users`: serial ID, unique GitHub ID, optional name, email, and image, plus a creation timestamp.
+- `projects`: serial ID, optional owner reference to `users` with cascading deletion, required 2-80 character name, description, hex color, and creation timestamp.
 - `tasks`: serial ID, project foreign key with cascading delete, required 2-140 character title, status (`todo`, `doing`, or `done`), priority (`low`, `medium`, or `high`), optional due date, and creation timestamp.
 
-The schema also defines an index on `tasks.project_id` and check constraints for names, titles, status, and priority.
+The schema also defines indexes on `projects.owner_id` and `tasks.project_id`, and check constraints for project names, task titles, status, and priority.
+
+## OAuth flow
+
+1. The user submits the GitHub sign-in form, and the Auth.js Server Action redirects the browser to GitHub.
+2. The user authorizes the OAuth app on GitHub.
+3. GitHub redirects to `/api/auth/callback/github` with an authorization code. Auth.js validates the OAuth state and exchanges the code for the user profile.
+4. The JWT callback upserts the profile by GitHub account ID and stores the numeric `users.id` in the JWT.
+5. Auth.js sets its session cookie. On later requests, the session callback exposes that database ID as `session.user.id`; the navbar renders the user menu from the server session.
 
 ## Validation
 

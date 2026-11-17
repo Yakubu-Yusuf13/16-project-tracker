@@ -6,6 +6,19 @@ CREATE TABLE projects (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE users (
+  id          serial PRIMARY KEY,
+  github_id   text NOT NULL UNIQUE,
+  name        text,
+  email       text,
+  image       text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE projects
+  ADD COLUMN owner_id integer REFERENCES users(id) ON DELETE CASCADE;
+CREATE INDEX projects_owner_idx ON projects(owner_id);
+
 CREATE TABLE tasks (
   id          serial PRIMARY KEY,
   project_id  integer NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
