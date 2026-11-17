@@ -1,5 +1,7 @@
 # Project Tracker
 
+[![CI](https://github.com/Yakubu-Yusuf13/16-project-tracker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Yakubu-Yusuf13/16-project-tracker/actions/workflows/ci.yml)
+
 A Next.js app for tracking projects and tasks with a Kanban board and workspace statistics.
 
 ## Features
@@ -128,3 +130,7 @@ Projects are visible only to their owner. Task reads and writes are authorized t
 npm run lint
 npm run build
 ```
+
+## Continuous integration
+
+GitHub Actions runs lint, TypeScript checking, and a production build on pull requests and pushes to `main`. The build reads `DATABASE_URL` and `AUTH_SECRET` from repository Actions secrets. Add them under **Settings → Secrets and variables → Actions → New repository secret**; never put their values in workflow files or logs.
