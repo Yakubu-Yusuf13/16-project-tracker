@@ -20,10 +20,11 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 
 ## Architecture
 
-- App Router Server Components load dashboard, project, and statistics data.
+- App Router Server Components load dashboard, project, and statistics data at request time so database changes are not frozen into a build.
 - `src/lib/queries.ts` contains parameterized SQL reads; `src/lib/db.ts` creates the server-only Neon client.
 - `src/app/actions.ts` contains Server Actions for writes. They validate `FormData` with Zod, execute parameterized SQL, and revalidate affected routes.
 - Client form and Kanban components use `useActionState` and `useOptimistic` for submission feedback and responsive task moves.
+- `next.config.ts` applies security headers to all routes.
 
 ## Setup
 

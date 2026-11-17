@@ -80,7 +80,12 @@ export default function KanbanBoard({ projectId, tasks }: { projectId: number; t
   return (
     <div>
       {error && <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{error}</p>}
-      <div className="overflow-x-auto pb-2">
+      <div
+        role="region"
+        aria-label="Kanban board. Scroll horizontally to view all status columns."
+        tabIndex={0}
+        className="overflow-x-auto pb-2"
+      >
         <div className="grid min-w-[780px] grid-cols-3 items-start gap-4">
         {columns.map((column, columnIndex) => {
           const columnTasks = optimisticTasks.filter((task) => task.status === column.status);

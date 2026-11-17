@@ -11,6 +11,8 @@ type ProjectPageProps = {
 };
 
 const priorities: TaskPriority[] = ["low", "medium", "high"];
+export const dynamic = "force-dynamic";
+
 function isTaskPriority(value: string): value is TaskPriority {
   return priorities.some((priority) => priority === value);
 }

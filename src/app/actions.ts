@@ -23,8 +23,8 @@ function validationFailure(error: { flatten: () => { fieldErrors: Record<string,
 async function runMutation<T>(label: string, query: () => Promise<T>): Promise<T | null> {
   try {
     return await query();
-  } catch (error) {
-    console.error(`Failed to ${label}.`, error);
+  } catch {
+    console.error(`Failed to ${label}.`);
     return null;
   }
 }
@@ -44,7 +44,7 @@ export async function createProject(_previousState: ActionState, formData: FormD
     VALUES (${parsed.data.name}, ${parsed.data.description}, ${parsed.data.color})
     RETURNING id
   `);
-  if (!rows) return mutationFailure("Could not create the project. Check the database connection and try again.");
+  if (!rows) return mutationFailure("Could not create the project right now. Please try again.");
 
   revalidatePath("/");
   return success;
@@ -62,7 +62,7 @@ export async function createTask(_previousState: ActionState, formData: FormData
     WHERE p.id = ${project_id}
     RETURNING id
   `);
-  if (!rows) return mutationFailure("Could not create the task. Check the database connection and try again.");
+  if (!rows) return mutationFailure("Could not create the task right now. Please try again.");
   if (rows.length === 0) return mutationFailure("That project no longer exists.");
 
   revalidatePath("/");
@@ -80,7 +80,7 @@ export async function updateTaskStatus(_previousState: ActionState, formData: Fo
     WHERE id = ${task_id} AND project_id = ${project_id}
     RETURNING id
   `);
-  if (!rows) return mutationFailure("Could not update the task. Check the database connection and try again.");
+  if (!rows) return mutationFailure("Could not update the task right now. Please try again.");
   if (rows.length === 0) return mutationFailure("Task not found in this project.");
 
   revalidatePath("/");
@@ -97,7 +97,7 @@ export async function deleteTask(_previousState: ActionState, formData: FormData
     DELETE FROM tasks WHERE id = ${task_id} AND project_id = ${project_id}
     RETURNING id
   `);
-  if (!rows) return mutationFailure("Could not delete the task. Check the database connection and try again.");
+  if (!rows) return mutationFailure("Could not delete the task right now. Please try again.");
   if (rows.length === 0) return mutationFailure("Task not found in this project.");
 
   revalidatePath("/");
@@ -114,7 +114,7 @@ export async function deleteProject(_previousState: ActionState, formData: FormD
     DELETE FROM projects WHERE id = ${project_id}
     RETURNING id
   `);
-  if (!rows) return mutationFailure("Could not delete the project. Check the database connection and try again.");
+  if (!rows) return mutationFailure("Could not delete the project right now. Please try again.");
   if (rows.length === 0) return mutationFailure("Project not found.");
 
   revalidatePath("/");

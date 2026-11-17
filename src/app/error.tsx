@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-
 type ErrorProps = {
   error: Error & { digest?: string };
   reset: () => void;
 };
 
-export default function Error({ error, reset }: ErrorProps) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
-
+export default function Error({ reset }: ErrorProps) {
   return (
     <main className="flex min-h-screen items-center justify-center px-5 py-12">
       <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -19,10 +13,10 @@ export default function Error({ error, reset }: ErrorProps) {
           Something went wrong
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-          We couldn’t load your projects
+          We couldn’t load this page
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Check your database connection and try again. If the problem continues, check the server logs.
+          Please try again. If the problem continues, contact support.
         </p>
         <button
           type="button"

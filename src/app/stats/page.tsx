@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: "Project and task completion statistics.",
 };
 
+export const dynamic = "force-dynamic";
+
 function BarChart({ title, rows }: { title: string; rows: StatsAggregateRow[] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-label={title}>

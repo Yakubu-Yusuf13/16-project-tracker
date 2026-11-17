@@ -3,6 +3,8 @@ import { getProjects } from "@/lib/queries";
 import DeleteProjectForm from "@/app/delete-project-form";
 import ProjectForm from "@/app/project-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const projects = await getProjects();
   const totalTasks = projects.reduce((total, project) => total + project.taskCount, 0);
@@ -24,7 +26,7 @@ export default async function Home() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Tasks complete</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">{completedTasks}<span className="font-normal text-slate-400">/{totalTasks}</span></p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">{completedTasks}<span className="font-normal text-slate-600">/{totalTasks}</span></p>
           </div>
         </div>
       </header>

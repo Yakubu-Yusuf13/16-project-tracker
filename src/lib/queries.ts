@@ -108,7 +108,7 @@ export async function getTasks(
       title,
       status,
       priority,
-      due_date AS "dueDate",
+      due_date::text AS "dueDate",
       created_at AS "createdAt"
     FROM tasks
     WHERE project_id = ${projectId}
@@ -221,7 +221,7 @@ export async function getStatsData(): Promise<{
         p.id AS "projectId",
         p.name AS "projectName",
         t.priority,
-        t.due_date AS "dueDate"
+        t.due_date::text AS "dueDate"
       FROM tasks AS t
       JOIN projects AS p ON p.id = t.project_id
       WHERE t.due_date < CURRENT_DATE AND t.status <> 'done'
