@@ -28,6 +28,7 @@ export interface TaskFilters {
   priority?: TaskPriority;
   dueAfter?: string;
   dueBefore?: string;
+  q?: string;
 }
 
 export async function getProjects(): Promise<ProjectSummary[]> {
@@ -77,6 +78,7 @@ export async function getTasks(
   const priority = filters.priority ?? null;
   const dueAfter = filters.dueAfter ?? null;
   const dueBefore = filters.dueBefore ?? null;
+  const q = filters.q?.trim() || null;
 
   const rows = await sql`
     SELECT
@@ -93,6 +95,7 @@ export async function getTasks(
       AND (${priority}::text IS NULL OR priority = ${priority})
       AND (${dueAfter}::date IS NULL OR due_date >= ${dueAfter}::date)
       AND (${dueBefore}::date IS NULL OR due_date <= ${dueBefore}::date)
+      AND (${q}::text IS NULL OR title ILIKE '%' || ${q} || '%')
     ORDER BY
       CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
       due_date ASC NULLS LAST,

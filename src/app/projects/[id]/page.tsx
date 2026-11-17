@@ -1,28 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProject, getTasks } from "@/lib/queries";
+import { getProject, getTasks, type TaskPriority } from "@/lib/queries";
 import TaskForm from "@/app/projects/[id]/task-form";
-import TaskControls from "@/app/projects/[id]/task-controls";
+import KanbanBoard from "@/app/projects/[id]/kanban-board";
 
 type ProjectPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ priority?: string | string[]; q?: string | string[] }>;
 };
 
-const statusLabels = {
-  todo: "To do",
-  doing: "In progress",
-  done: "Done",
-} as const;
+const priorities: TaskPriority[] = ["low", "medium", "high"];
+function isTaskPriority(value: string): value is TaskPriority {
+  return priorities.some((priority) => priority === value);
+}
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
-  const { id } = await params;
+export default async function ProjectPage({ params, searchParams }: ProjectPageProps) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const projectId = Number(id);
   if (!Number.isSafeInteger(projectId) || projectId < 1) notFound();
 
   const project = await getProject(projectId);
   if (!project) notFound();
 
-  const tasks = await getTasks(projectId);
+  const priority = typeof query.priority === "string" && isTaskPriority(query.priority)
+    ? query.priority
+    : undefined;
+  const q = typeof query.q === "string" ? query.q.trim() : "";
+  const tasks = await getTasks(projectId, { priority, q: q || undefined });
   const progress = project.taskCount ? Math.round((project.doneCount / project.taskCount) * 100) : 0;
 
   return (
@@ -52,29 +56,30 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       </section>
 
       <section aria-labelledby="tasks-heading" className="mt-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 id="tasks-heading" className="text-lg font-semibold text-slate-900">Tasks</h2>
-          <span className="text-sm text-slate-500">{tasks.length} {tasks.length === 1 ? "task" : "tasks"}</span>
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="tasks-heading" className="text-lg font-semibold text-slate-900">Kanban board</h2>
+            <p className="mt-1 text-sm text-slate-500">{tasks.length} matching {tasks.length === 1 ? "task" : "tasks"}</p>
+          </div>
+          <form method="get" className="flex flex-wrap items-end gap-2">
+            <label className="text-xs font-medium text-slate-600">
+              Priority
+              <select name="priority" defaultValue={priority ?? ""} className="mt-1 block min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                <option value="">All priorities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
+            <label className="text-xs font-medium text-slate-600">
+              Search tasks
+              <input type="search" name="q" defaultValue={q} maxLength={100} placeholder="e.g. design" className="mt-1 block min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+            </label>
+            <button type="submit" className="min-h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
+            {(priority || q) && <Link href={`/projects/${projectId}`} className="min-h-10 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Clear</Link>}
+          </form>
         </div>
-        {tasks.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">No tasks yet. Add one above.</div>
-        ) : (
-          <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {tasks.map((task) => (
-              <li key={task.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h3 className={`font-medium ${task.status === "done" ? "text-slate-400 line-through" : "text-slate-900"}`}>{task.title}</h3>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1">{statusLabels[task.status]}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 capitalize">{task.priority} priority</span>
-                    {task.dueDate && <span>Due {task.dueDate}</span>}
-                  </div>
-                </div>
-                <TaskControls projectId={projectId} task={task} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <KanbanBoard projectId={projectId} tasks={tasks} />
       </section>
     </main>
   );
