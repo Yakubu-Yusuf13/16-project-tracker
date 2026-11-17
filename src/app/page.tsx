@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { getProjects } from "@/lib/queries";
+import { requireUser } from "@/lib/session";
 import DeleteProjectForm from "@/app/delete-project-form";
 import ProjectForm from "@/app/project-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const projects = await getProjects();
+  const { id: userId } = await requireUser();
+  const projects = await getProjects(userId);
   const totalTasks = projects.reduce((total, project) => total + project.taskCount, 0);
   const completedTasks = projects.reduce((total, project) => total + project.doneCount, 0);
 

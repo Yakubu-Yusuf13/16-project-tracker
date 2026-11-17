@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getStatsData, type StatsAggregateRow } from "@/lib/queries";
+import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Statistics | Project Tracker",
@@ -31,7 +32,8 @@ function BarChart({ title, rows }: { title: string; rows: StatsAggregateRow[] })
 }
 
 export default async function StatsPage() {
-  const { aggregates, overdueTasks } = await getStatsData();
+  const { id: userId } = await requireUser();
+  const { aggregates, overdueTasks } = await getStatsData(userId);
   const totals = aggregates.find((row) => row.kind === "total");
   const projectTotal = aggregates.find((row) => row.kind === "project-total");
   if (!totals || !projectTotal) throw new Error("Statistics query did not return total rows.");
@@ -54,7 +56,7 @@ export default async function StatsPage() {
       <header className="mt-6 mb-8">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">Workspace overview</p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Statistics</h1>
-        <p className="mt-2 text-sm text-slate-500">A summary of task progress across all projects.</p>
+        <p className="mt-2 text-sm text-slate-500">A summary of task progress across your projects.</p>
       </header>
 
       <section aria-label="Overall totals" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

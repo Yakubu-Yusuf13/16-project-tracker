@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProject, getTasks, type TaskPriority } from "@/lib/queries";
+import { requireUser } from "@/lib/session";
 import TaskForm from "@/app/projects/[id]/task-form";
 import KanbanBoard from "@/app/projects/[id]/kanban-board";
 
@@ -18,13 +19,14 @@ function isTaskPriority(value: string): value is TaskPriority {
 }
 
 export async function generateMetadata({ params }: Pick<ProjectPageProps, "params">): Promise<Metadata> {
+  const { id: userId } = await requireUser();
   const { id } = await params;
   const projectId = Number(id);
   if (!Number.isSafeInteger(projectId) || projectId < 1) {
     return { title: "Project not found | Project Tracker" };
   }
 
-  const project = await getProject(projectId);
+  const project = await getProject(userId, projectId);
   if (!project) return { title: "Project not found | Project Tracker" };
 
   return {
@@ -33,18 +35,19 @@ export async function generateMetadata({ params }: Pick<ProjectPageProps, "param
   };
 }
 export default async function ProjectPage({ params, searchParams }: ProjectPageProps) {
+  const { id: userId } = await requireUser();
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const projectId = Number(id);
   if (!Number.isSafeInteger(projectId) || projectId < 1) notFound();
 
-  const project = await getProject(projectId);
+  const project = await getProject(userId, projectId);
   if (!project) notFound();
 
   const priority = typeof query.priority === "string" && isTaskPriority(query.priority)
     ? query.priority
     : undefined;
   const q = typeof query.q === "string" ? query.q.trim() : "";
-  const tasks = await getTasks(projectId, { priority, q: q || undefined });
+  const tasks = await getTasks(userId, projectId, { priority, q: q || undefined });
   const progress = project.taskCount ? Math.round((project.doneCount / project.taskCount) * 100) : 0;
 
   return (

@@ -32,6 +32,15 @@ export const DeleteProjectInput = z.object({
   project_id: z.coerce.number().int().positive(),
 });
 
+export const TaskCommentScopeInput = z.object({
+  project_id: z.coerce.number().int().positive(),
+  task_id: z.coerce.number().int().positive(),
+});
+
+export const TaskCommentInput = TaskCommentScopeInput.extend({
+  body: z.string().trim().min(1, "Write a comment.").max(2000, "Comments must be 2000 characters or fewer."),
+});
+
 export interface ActionState {
   ok: boolean;
   errors: Record<string, string[]>;

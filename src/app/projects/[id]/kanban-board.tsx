@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { deleteTask, updateTaskStatus } from "@/app/actions";
 import type { Task, TaskStatus, TaskPriority } from "@/lib/queries";
 import { initialActionState } from "@/lib/validation";
+import TaskDetailDrawer from "@/app/projects/[id]/task-detail-drawer";
 
 type BoardAction =
   | { type: "move"; taskId: number; status: TaskStatus }
@@ -33,6 +34,7 @@ export default function KanbanBoard({ projectId, tasks }: { projectId: number; t
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [optimisticTasks, dispatchOptimistic] = useOptimistic(
     tasks,
     (currentTasks: Task[], action: BoardAction) => {
@@ -71,6 +73,7 @@ export default function KanbanBoard({ projectId, tasks }: { projectId: number; t
         setError(result.errors._form?.[0] ?? "Could not delete the task.");
         return;
       }
+      if (selectedTask?.id === task.id) setSelectedTask(null);
       router.refresh();
     });
   }
@@ -104,7 +107,16 @@ export default function KanbanBoard({ projectId, tasks }: { projectId: number; t
                     return (
                       <li key={task.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
-                          <h4 className={`font-medium leading-5 ${task.status === "done" ? "text-slate-500" : "text-slate-900"}`}>{task.title}</h4>
+                          <h4 className={`font-medium leading-5 ${task.status === "done" ? "text-slate-500" : "text-slate-900"}`}>
+                            <button
+                              type="button"
+                              aria-label={`View details for ${task.title}`}
+                              onClick={() => setSelectedTask(task)}
+                              className="text-left hover:text-indigo-700"
+                            >
+                              {task.title}
+                            </button>
+                          </h4>
                           <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold capitalize ${priorityStyles[task.priority]}`}>{task.priority}</span>
                         </div>
                         {task.dueDate && (
@@ -133,6 +145,14 @@ export default function KanbanBoard({ projectId, tasks }: { projectId: number; t
         })}
         </div>
       </div>
+      {selectedTask && (
+        <TaskDetailDrawer
+          key={`${projectId}:${selectedTask.id}`}
+          projectId={projectId}
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
     </div>
   );
 }

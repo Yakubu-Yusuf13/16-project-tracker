@@ -6,6 +6,19 @@ CREATE TABLE projects (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE users (
+  id          serial PRIMARY KEY,
+  github_id   text NOT NULL UNIQUE,
+  name        text,
+  email       text,
+  image       text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE projects
+  ADD COLUMN owner_id integer REFERENCES users(id) ON DELETE CASCADE;
+CREATE INDEX projects_owner_idx ON projects(owner_id);
+
 CREATE TABLE tasks (
   id          serial PRIMARY KEY,
   project_id  integer NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -16,6 +29,15 @@ CREATE TABLE tasks (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX tasks_project_idx ON tasks(project_id);
+
+CREATE TABLE task_comments (
+  id          serial PRIMARY KEY,
+  task_id     integer NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  author_id   integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body        text NOT NULL CHECK (char_length(btrim(body)) BETWEEN 1 AND 2000),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX task_comments_task_created_idx ON task_comments(task_id, created_at, id);
 
 INSERT INTO projects (name, description, color) VALUES
   ('Website Redesign', 'Refresh the company marketing site', '#0ea5e9'),
