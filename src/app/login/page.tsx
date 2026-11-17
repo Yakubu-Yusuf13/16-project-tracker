@@ -1,6 +1,14 @@
 import { signInWithGitHub } from "@/app/auth-actions";
+import { getSafeCallbackUrl } from "@/lib/session";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{ callbackUrl?: string | string[] }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const callbackUrl = getSafeCallbackUrl(params.callbackUrl);
+
   return (
     <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center px-5 py-12 sm:px-8">
       <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 sm:p-10">
@@ -17,6 +25,7 @@ export default function LoginPage() {
           Sign in with GitHub to continue to your project workspace.
         </p>
         <form action={signInWithGitHub} className="mt-8">
+          <input type="hidden" name="callbackUrl" value={callbackUrl} />
           <button
             type="submit"
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"

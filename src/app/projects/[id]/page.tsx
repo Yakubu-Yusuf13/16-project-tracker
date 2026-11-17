@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProject, getTasks, type TaskPriority } from "@/lib/queries";
+import { requireUser } from "@/lib/session";
 import TaskForm from "@/app/projects/[id]/task-form";
 import KanbanBoard from "@/app/projects/[id]/kanban-board";
 
@@ -16,6 +17,7 @@ function isTaskPriority(value: string): value is TaskPriority {
 }
 
 export async function generateMetadata({ params }: Pick<ProjectPageProps, "params">): Promise<Metadata> {
+  await requireUser();
   const { id } = await params;
   const projectId = Number(id);
   if (!Number.isSafeInteger(projectId) || projectId < 1) {
@@ -31,6 +33,7 @@ export async function generateMetadata({ params }: Pick<ProjectPageProps, "param
   };
 }
 export default async function ProjectPage({ params, searchParams }: ProjectPageProps) {
+  await requireUser();
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const projectId = Number(id);
   if (!Number.isSafeInteger(projectId) || projectId < 1) notFound();

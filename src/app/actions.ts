@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
+import { requireUser } from "@/lib/session";
 import {
   DeleteProjectInput,
   DeleteTaskInput,
@@ -36,6 +37,7 @@ function mutationFailure(message: string): ActionState {
 const success: ActionState = { ok: true, errors: {} };
 
 export async function createProject(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
   const parsed = ProjectInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 
@@ -51,6 +53,7 @@ export async function createProject(_previousState: ActionState, formData: FormD
 }
 
 export async function createTask(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
   const parsed = TaskInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 
@@ -71,6 +74,7 @@ export async function createTask(_previousState: ActionState, formData: FormData
 }
 
 export async function updateTaskStatus(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
   const parsed = TaskStatusUpdateInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 
@@ -89,6 +93,7 @@ export async function updateTaskStatus(_previousState: ActionState, formData: Fo
 }
 
 export async function deleteTask(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
   const parsed = DeleteTaskInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 
@@ -106,6 +111,7 @@ export async function deleteTask(_previousState: ActionState, formData: FormData
 }
 
 export async function deleteProject(_previousState: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
   const parsed = DeleteProjectInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 

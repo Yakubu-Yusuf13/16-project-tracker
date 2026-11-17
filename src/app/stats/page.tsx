@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getStatsData, type StatsAggregateRow } from "@/lib/queries";
+import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Statistics | Project Tracker",
@@ -29,6 +30,7 @@ function BarChart({ title, rows }: { title: string; rows: StatsAggregateRow[] })
 }
 
 export default async function StatsPage() {
+  await requireUser();
   const { aggregates, overdueTasks } = await getStatsData();
   const totals = aggregates.find((row) => row.kind === "total");
   const projectTotal = aggregates.find((row) => row.kind === "project-total");

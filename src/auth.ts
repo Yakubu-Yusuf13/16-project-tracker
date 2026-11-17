@@ -1,9 +1,8 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { sql } from "@/lib/db";
-import type { AppSession } from "@/types/next-auth";
 
-const authResult = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [GitHub],
   session: { strategy: "jwt" },
   callbacks: {
@@ -55,16 +54,3 @@ const authResult = NextAuth({
     },
   },
 });
-
-export const { handlers, signIn, signOut } = authResult;
-
-export async function auth(): Promise<AppSession | null> {
-  const session = await authResult.auth();
-  if (!session) return null;
-  if (!session.user) {
-    throw new Error("The Auth.js session is missing its user profile.");
-  }
-
-  // Auth.js types user IDs as strings; the session callback replaces this with the numeric database ID.
-  return session as unknown as AppSession;
-}

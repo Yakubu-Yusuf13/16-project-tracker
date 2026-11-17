@@ -24,6 +24,8 @@ A Next.js app for tracking projects and tasks with a Kanban board and workspace 
 - App Router Server Components load dashboard, project, and statistics data.
 - `src/lib/queries.ts` contains parameterized SQL reads; `src/lib/db.ts` creates the server-only Neon client.
 - `src/auth.ts` configures Auth.js with GitHub, upserts users by GitHub account ID, and adds the database user ID to JWT and session data.
+- `src/proxy.ts` protects application routes and sends unauthenticated requests to `/login` with a relative `callbackUrl`.
+- `src/lib/session.ts` provides `requireUser()` guards for data pages and Server Actions.
 - The root navigation reads the session in a Suspense boundary; sign-in and sign-out are Server Actions.
 - `src/app/actions.ts` contains Server Actions for writes. They validate `FormData` with Zod, execute parameterized SQL, and revalidate affected routes.
 - Client form and Kanban components use `useActionState` and `useOptimistic` for submission feedback and responsive task moves.
@@ -70,6 +72,12 @@ The schema also defines indexes on `projects.owner_id` and `tasks.project_id`, a
 3. GitHub redirects to `/api/auth/callback/github` with an authorization code. Auth.js validates the OAuth state and exchanges the code for the user profile.
 4. The JWT callback upserts the profile by GitHub account ID and stores the numeric `users.id` in the JWT.
 5. Auth.js sets its session cookie. On later requests, the session callback exposes that database ID as `session.user.id`; the navbar renders the user menu from the server session.
+
+## Route protection
+
+The Next.js 16 `src/proxy.ts` convention redirects unauthenticated page requests, but it is not an authorization boundary for application code: Server Actions can be invoked directly, outside the UI navigation flow. Pages that read private data and data-mutating Server Actions therefore call `requireUser()` themselves. The GitHub sign-in action is intentionally public so unauthenticated users can start login; the sign-out action verifies the session.
+
+The login action validates `callbackUrl` on the server and accepts only same-origin relative paths, falling back to `/` for external or malformed values.
 
 ## Validation
 
