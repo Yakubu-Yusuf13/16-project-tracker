@@ -52,7 +52,7 @@ export interface OverdueTask {
   priority: TaskPriority;
   dueDate: string;
 }
-export async function getProjects(): Promise<ProjectSummary[]> {
+export async function getProjects(userId: number): Promise<ProjectSummary[]> {
   const rows = await sql`
     SELECT
       p.id,
@@ -64,6 +64,7 @@ export async function getProjects(): Promise<ProjectSummary[]> {
       COUNT(t.id) FILTER (WHERE t.status = 'done')::int AS "doneCount"
     FROM projects AS p
     LEFT JOIN tasks AS t ON t.project_id = p.id
+    WHERE p.owner_id = ${userId}
     GROUP BY p.id
     ORDER BY p.created_at DESC, p.id DESC
   `;
@@ -71,7 +72,7 @@ export async function getProjects(): Promise<ProjectSummary[]> {
   return rows as ProjectSummary[];
 }
 
-export async function getProject(id: number): Promise<ProjectSummary | null> {
+export async function getProject(userId: number, id: number): Promise<ProjectSummary | null> {
   const rows = await sql`
     SELECT
       p.id,
@@ -83,7 +84,7 @@ export async function getProject(id: number): Promise<ProjectSummary | null> {
       COUNT(t.id) FILTER (WHERE t.status = 'done')::int AS "doneCount"
     FROM projects AS p
     LEFT JOIN tasks AS t ON t.project_id = p.id
-    WHERE p.id = ${id}
+    WHERE p.id = ${id} AND p.owner_id = ${userId}
     GROUP BY p.id
     LIMIT 1
   `;
@@ -92,6 +93,7 @@ export async function getProject(id: number): Promise<ProjectSummary | null> {
 }
 
 export async function getTasks(
+  userId: number,
   projectId: number,
   filters: TaskFilters = {},
 ): Promise<Task[]> {
@@ -103,35 +105,46 @@ export async function getTasks(
 
   const rows = await sql`
     SELECT
-      id,
-      project_id AS "projectId",
-      title,
-      status,
-      priority,
-      due_date AS "dueDate",
-      created_at AS "createdAt"
-    FROM tasks
-    WHERE project_id = ${projectId}
-      AND (${status}::text IS NULL OR status = ${status})
-      AND (${priority}::text IS NULL OR priority = ${priority})
-      AND (${dueAfter}::date IS NULL OR due_date >= ${dueAfter}::date)
-      AND (${dueBefore}::date IS NULL OR due_date <= ${dueBefore}::date)
-      AND (${q}::text IS NULL OR title ILIKE '%' || ${q} || '%')
+      t.id,
+      t.project_id AS "projectId",
+      t.title,
+      t.status,
+      t.priority,
+      t.due_date AS "dueDate",
+      t.created_at AS "createdAt"
+    FROM tasks AS t
+    JOIN projects AS p ON p.id = t.project_id AND p.owner_id = ${userId}
+    WHERE t.project_id = ${projectId}
+      AND (${status}::text IS NULL OR t.status = ${status})
+      AND (${priority}::text IS NULL OR t.priority = ${priority})
+      AND (${dueAfter}::date IS NULL OR t.due_date >= ${dueAfter}::date)
+      AND (${dueBefore}::date IS NULL OR t.due_date <= ${dueBefore}::date)
+      AND (${q}::text IS NULL OR t.title ILIKE '%' || ${q} || '%')
     ORDER BY
-      CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-      due_date ASC NULLS LAST,
-      created_at DESC
+      CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+      t.due_date ASC NULLS LAST,
+      t.created_at DESC
   `;
 
   return rows as Task[];
 }
-export async function getStatsData(): Promise<{
+export async function getStatsData(userId: number): Promise<{
   aggregates: StatsAggregateRow[];
   overdueTasks: OverdueTask[];
 }> {
   const [aggregateRows, overdueRows] = await Promise.all([
     sql`
-      WITH task_totals AS (
+      WITH owned_projects AS (
+        SELECT id, name, color
+        FROM projects
+        WHERE owner_id = ${userId}
+      ),
+      owned_tasks AS (
+        SELECT t.*
+        FROM tasks AS t
+        JOIN projects AS p ON p.id = t.project_id AND p.owner_id = ${userId}
+      ),
+      task_totals AS (
         SELECT
           COUNT(*)::int AS total_count,
           COUNT(*) FILTER (WHERE status = 'done')::int AS done_count,
@@ -140,7 +153,7 @@ export async function getStatsData(): Promise<{
             ROUND(COUNT(*) FILTER (WHERE status = 'done') * 100.0 / NULLIF(COUNT(*), 0)),
             0
           )::int AS completion_pct
-        FROM tasks
+        FROM owned_tasks
       )
       SELECT
         'total'::text AS kind,
@@ -164,7 +177,7 @@ export async function getStatsData(): Promise<{
         CASE WHEN COUNT(*) > 0 THEN 100 ELSE 0 END::int,
         NULL::int,
         NULL::text
-      FROM projects
+      FROM owned_projects
       UNION ALL
       SELECT
         'status',
@@ -177,7 +190,7 @@ export async function getStatsData(): Promise<{
         NULL::int,
         NULL::text
       FROM (VALUES ('todo'::text), ('doing'::text), ('done'::text)) AS s(status)
-      LEFT JOIN tasks AS t ON t.status = s.status
+      LEFT JOIN owned_tasks AS t ON t.status = s.status
       CROSS JOIN task_totals AS tt
       GROUP BY s.status, tt.total_count
       UNION ALL
@@ -192,7 +205,7 @@ export async function getStatsData(): Promise<{
         NULL::int,
         NULL::text
       FROM (VALUES ('low'::text), ('medium'::text), ('high'::text)) AS p(priority)
-      LEFT JOIN tasks AS t ON t.priority = p.priority
+      LEFT JOIN owned_tasks AS t ON t.priority = p.priority
       CROSS JOIN task_totals AS tt
       GROUP BY p.priority, tt.total_count
       UNION ALL
@@ -209,8 +222,8 @@ export async function getStatsData(): Promise<{
         COALESCE(ROUND(COUNT(t.id) * 100.0 / NULLIF(tt.total_count, 0)), 0)::int,
         p.id,
         p.color
-      FROM projects AS p
-      LEFT JOIN tasks AS t ON t.project_id = p.id
+      FROM owned_projects AS p
+      LEFT JOIN owned_tasks AS t ON t.project_id = p.id
       CROSS JOIN task_totals AS tt
       GROUP BY p.id, p.name, p.color, tt.total_count
     `,
@@ -223,7 +236,7 @@ export async function getStatsData(): Promise<{
         t.priority,
         t.due_date AS "dueDate"
       FROM tasks AS t
-      JOIN projects AS p ON p.id = t.project_id
+      JOIN projects AS p ON p.id = t.project_id AND p.owner_id = ${userId}
       WHERE t.due_date < CURRENT_DATE AND t.status <> 'done'
       ORDER BY t.due_date ASC, p.name ASC, t.title ASC
     `,

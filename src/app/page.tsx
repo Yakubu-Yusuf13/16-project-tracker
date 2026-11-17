@@ -5,8 +5,8 @@ import DeleteProjectForm from "@/app/delete-project-form";
 import ProjectForm from "@/app/project-form";
 
 export default async function Home() {
-  await requireUser();
-  const projects = await getProjects();
+  const { id: userId } = await requireUser();
+  const projects = await getProjects(userId);
   const totalTasks = projects.reduce((total, project) => total + project.taskCount, 0);
   const completedTasks = projects.reduce((total, project) => total + project.doneCount, 0);
 
